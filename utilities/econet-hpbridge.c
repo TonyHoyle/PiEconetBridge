@@ -1016,6 +1016,7 @@ struct __eb_device * eb_new_local(uint8_t net, uint8_t stn, uint16_t newtype)
 		else if (newtype == EB_DEF_PIPE)
 		{
 			existing->pipe.base = NULL;
+			existing->pipe.cmd = NULL;
 			pthread_mutex_init(&existing->pipe.code_mutex, NULL);	
 			existing->pipe.stn = stn;
 			existing->pipe.skt_read = existing->pipe.skt_write = -1;
@@ -3633,7 +3634,41 @@ static void * eb_device_despatcher (void * device)
 				eb_debug (0, 2, "DESPATCH", "%-8s %3d.%3d Pipe reader device %s opened", "", d->net, d->pipe.stn, readerfile);
 	
 			//d->pipe.skt_write = -1; // Initialize. -1 means no client. This will get opened when we receive traffic. Semantics of a pipe-connected station is that on connection it *must* send some traffic - usually a Bridge WhatNet? Query.
-		} break;
+
+			if(d->pipe.cmd != NULL)
+			{
+				pid_t pid = fork();
+				if(pid == 0)
+				{
+					char *saveptr = NULL;
+					char *token;
+					char *args[33];
+					char *cmd; 
+					int n;
+
+					cmd = eb_malloc(__FILE__, __LINE__, "DESPATCH", "Pipe command string", strlen(d->pipe.cmd)+1);
+
+					if (!cmd)
+						eb_debug (1, 0, "DESPATCH", "Unable to malloc() for pipe command for station %d.%d", d->net, d->pipe.stn);
+
+					strcpy(cmd, d->pipe.cmd);
+					
+					for(n=0, token=strtok_r(cmd, " ", &saveptr); n<30 && token != NULL; token = strtok_r(NULL, " ", &saveptr))
+						args[n++] = token;
+					args[n++] = "-p";
+					args[n++] = d->pipe.base;
+					args[n++] = NULL;
+
+					if(execv(args[0], args) == -1)
+						eb_debug(1, 0,  "DESPATCH", "Unable to run pipe command %s", cmd);
+
+					eb_free(__FILE__, __LINE__, "DESPATCH", "Pipe command string", cmd); // We wont' get here if this succeeds
+					exit(EXIT_FAILURE);
+				}
+				else if(pid == -1)
+				 	eb_debug(1, 0, "DESPATCH", "Unable to fork for pipe server");
+			}
+		} break;	
 
 		case EB_DEF_TRUNK:
 		{
@@ -5394,6 +5429,7 @@ static void * eb_device_despatcher (void * device)
 												job->next->parent = NULL;
 										}
 										
+										unlink(job->spoolfilename);
 										eb_free (__FILE__, __LINE__, "PRINTER", "Freeing completed printjob", job);
 									}
 								}
@@ -5976,6 +6012,7 @@ int eb_readconfig(char *f)
 		r_printhandler,
 		r_ipserver,
 		r_pipeserver,
+		r_pipeserver_cmd,
 		r_aunmap,
 		r_aunhost,
 		r_exposenet,
@@ -6029,6 +6066,9 @@ int eb_readconfig(char *f)
 	
 	if (regcomp(&r_pipeserver, EB_CFG_PIPESERVER, REG_EXTENDED | REG_ICASE) != 0)
 		eb_debug(1, 0, "CONFIG", "Cannot compile pipe server regex");
+	
+	if (regcomp(&r_pipeserver_cmd, EB_CFG_PIPESERVER_CMD, REG_EXTENDED | REG_ICASE) != 0)
+		eb_debug(1, 0, "CONFIG", "Cannot compile pipe server cmd regex");
 	
 	if (regcomp(&r_aunmap, EB_CFG_AUNMAP, REG_EXTENDED | REG_ICASE) != 0)
 		eb_debug(1, 0, "CONFIG", "Cannot compile AUN map regex");
@@ -6481,6 +6521,41 @@ int eb_readconfig(char *f)
 					eb_debug (1, 0, "CONFIG", "Unable to malloc() for pipe filename for station %d.%d", net, stn);
 
 				strcpy(existing->pipe.base, eb_getstring(line, &matches[2]));
+
+				if (!strcasecmp(eb_getstring(line, &matches[3]), "passthru"))
+					existing->config = EB_DEV_CONF_DIRECT;
+				else	existing->config = 0;
+
+				/* Put this in all wire station[] maps */
+
+				/* Don't do this until it's live - stops the kernel listening for traffic for a host that's not there */
+				// eb_set_single_wire_host (net, stn);
+
+			}
+			else if (!regexec(&r_pipeserver_cmd, line, 5, matches, 0))
+			{
+
+				struct __eb_device	*existing;
+				uint8_t			net, stn;
+				char              	pipename[40];
+
+				if (sscanf(eb_getstring(line, &matches[1]), "%3hhd.%3hhd", &net, &stn) != 2)
+					eb_debug (1, 0, "CONFIG", "Bad station ID for pipe gateway in config line %s", line);
+
+				existing = eb_new_local (net, stn, EB_DEF_PIPE);
+
+				if (!existing)	eb_debug (1, 0, "CONFIG", "Unable to create Pipe server device on %d.%d", net, stn);
+
+				snprintf(pipename, sizeof(pipename), "/tmp/pipeserver.%hhu.%hhu", net, stn);
+				existing->pipe.base = eb_malloc(__FILE__, __LINE__, "CONFIG", "Create pipe base string", strlen(pipename)+1);
+
+				if (!existing->pipe.base)
+					eb_debug (1, 0, "CONFIG", "Unable to malloc() for pipe filename for station %d.%d", net, stn);
+
+				strcpy(existing->pipe.base, pipename);
+
+				existing->pipe.cmd = eb_malloc(__FILE__, __LINE__, "CONFIG", "Pipe command string", strlen(eb_getstring(line, &matches[2]))+1);
+				strcpy(existing->pipe.cmd, eb_getstring(line, &matches[2]));
 
 				if (!strcasecmp(eb_getstring(line, &matches[3]), "passthru"))
 					existing->config = EB_DEV_CONF_DIRECT;

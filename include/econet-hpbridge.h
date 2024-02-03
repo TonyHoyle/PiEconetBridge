@@ -316,6 +316,7 @@ struct __eb_device { // Structure holding information about a "physical" device 
 
 		struct { // A local emulation connected by named pipe
 			char		*base; // Base filename (full path) to pipe
+			char		*cmd; // Server command to execute, if any
 			int		skt_read, skt_write; // Sockets to read from or write to the pipe
 			uint8_t		stn; // Station number
 			uint32_t	seq; // Sequence number
@@ -509,6 +510,7 @@ struct __eb_config {
 #define EB_CFG_PRINTHANDLER "^\\s*PRINTHANDLER\\s+ON\\s+([[:digit:]]{1,3}\\.[[:digit:]]{1,3})\\s+([0-9a-z]{1,6})\\s+IS\\s+(/.+)\\s*$"
 #define EB_CFG_IPSERVER "^\\s*IPSERVER\\s+ON\\s+([[:digit:]]{1,3}\\.[[:digit:]]{1,3})\\s+DEVICE\\s+(.+)\\s+USING\\s+IP\\s+([[:digit:]]{1,3}\\.[[:digit:]]{1,3}\\.[[:digit:]]{1,3}\\.[[:digit:]]{1,3}\\/[[:digit:]]{1,2})\\s*$"
 #define EB_CFG_PIPESERVER "^\\s*PIPESERVER\\s+ON\\s+([[:digit:]]{1,3}\\.[[:digit:]]{1,3})\\s+PATH\\s+(/.+)\\s+(PASSTHRU|NONE)\\s*$"
+#define EB_CFG_PIPESERVER_CMD "^\\s*PIPESERVER\\s+ON\\s+([[:digit:]]{1,3}\\.[[:digit:]]{1,3})\\s+CMD\\s+(/.+)\\s+(PASSTHRU|NONE)\\s*$"
 #define EB_CFG_AUNMAP "^\\s*AUN\\s+MAP\\s+NET\\s+([[:digit:]]{1,3})\\s+ON\\s+([[:digit:]]{1,3}\\.[[:digit:]]{1,3}\\.[[:digit:]]{1,3}\\.[[:digit:]]{1,3})\\s+PORT\\s+(FIXED|SEQ)\\s+([[:digit:]]{2,5}|AUTO)\\s+(AUTOACK|NONE)\\s*$"
 #define EB_CFG_AUNHOST "^\\s*AUN\\s+MAP\\s+HOST\\s+([[:digit:]]{1,3}\\.[[:digit:]]{1,3})\\s+ON\\s+([a-z0-9\\-\\.]+)\\s+PORT\\s+([[:digit:]]{2,5}|AUTO)\\s+(AUTOACK|NONE)\\s*$"
 #define EB_CFG_EXPOSE_NET "^\\s*EXPOSE\\s+NET\\s+([[:digit:]]{1,3})\\s+ON\\s+(\\*|[[:digit:]]{1,3}\\.[[:digit:]]{1,3}\\.[[:digit:]]{1,3}\\.[[:digit:]]{1,3})\\s+PORT\\s+(FIXED|SEQ)\\s+([[:digit:]]{2,5}|AUTO)\\s*$"
