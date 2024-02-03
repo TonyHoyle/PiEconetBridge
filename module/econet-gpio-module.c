@@ -1950,14 +1950,14 @@ const struct of_device_id econet_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, econet_of_match);
 
-static struct platform_driver econet_driver = {
+/*static struct platform_driver econet_driver = {
 	.driver = {
 			.name = "econet-gpio",
 			.of_match_table = of_match_ptr(econet_of_match),
 		},
 	.probe = econet_probe,
 	.remove = econet_remove,
-};
+};*/
 
 /* When a process reads from our device, this gets called. */
 ssize_t econet_readfd(struct file *flip, char *buffer, size_t len, loff_t *offset) {
@@ -2417,7 +2417,7 @@ long econet_ioctl (struct file *gp, unsigned int cmd, unsigned long arg)
 			printk (KERN_INFO "ECONET-GPIO: ioctl(set stations) called\n");
 #endif
 			/* Copy station bitmap from user memory */
-			if ((!access_ok(arg, 8192)) || copy_from_user(econet_stations, (void *) arg, 8192))
+			if ((!access_ok((void __user *)arg, 8192)) || copy_from_user(econet_stations, (void __user *) arg, 8192))
 			{
 				printk (KERN_INFO "ECONET-GPIO: Unable to update station set.\n");
 				return -EFAULT;
@@ -2719,12 +2719,12 @@ static int __init econet_init(void)
 
 /* This is known to be nasty. It should really pick all the GPIOs up from the DT - but that's the next stage... */
 
-static int __init econet_probe (struct platform_device *pdev)
+/*static int __init econet_probe (struct platform_device *pdev)
 {
 
 	return econet_init();
 
-}
+}*/
 
 /* Exit routine */
 
